@@ -3,67 +3,44 @@
 <head>
 <meta charset="UTF-8">
 <title>온라인 체스</title>
-
 <style>
-body {
-  font-family: Arial, sans-serif;
-  text-align: center;
-}
-
-.controls input, .controls button {
-  padding: 6px 10px;
-  font-size: 14px;
-}
-
-.status {
-  margin: 10px;
-  font-weight: bold;
-}
+body { font-family: Arial; text-align:center; }
+button,input { padding:6px; font-size:14px; }
+.status { margin:10px; font-weight:bold; }
 
 .board-wrapper {
-  display: inline-grid;
+  display:inline-grid;
   grid-template-columns: 30px auto;
   grid-template-rows: auto 30px;
 }
-
 .ranks {
-  display: grid;
-  grid-template-rows: repeat(8, 60px);
-  align-items: center;
-  font-weight: bold;
+  display:grid;
+  grid-template-rows:repeat(8,60px);
+  align-items:center;
+  font-weight:bold;
 }
-
 .files {
-  grid-column: 2;
-  display: grid;
-  grid-template-columns: repeat(8, 60px);
-  font-weight: bold;
+  grid-column:2;
+  display:grid;
+  grid-template-columns:repeat(8,60px);
+  font-weight:bold;
 }
-
 .board {
-  display: grid;
-  grid-template-columns: repeat(8, 60px);
-  grid-template-rows: repeat(8, 60px);
-  border: 4px solid #333;
+  display:grid;
+  grid-template-columns:repeat(8,60px);
+  grid-template-rows:repeat(8,60px);
+  border:4px solid #333;
 }
-
 .square {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 38px;
-  cursor: pointer;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-size:38px;
+  cursor:pointer;
 }
-
-.white { background:#f0d9b5; }
-.black { background:#b58863; }
-
-.selected {
-  outline: 3px solid red;
-}
-
-.white-piece { color:#000; }
-.black-piece { color:#000; }
+.white{background:#f0d9b5;}
+.black{background:#b58863;}
+.selected{outline:3px solid red;}
 </style>
 </head>
 
@@ -71,38 +48,29 @@ body {
 
 <h1>온라인 체스</h1>
 
-<div class="controls">
+<div>
   <button onclick="createRoom()">방 만들기</button>
   <input id="roomInput" placeholder="방 코드 입력">
   <button onclick="joinRoom()">입장</button>
 </div>
 
-<div id="status" class="status">방을 생성하거나 참가하세요</div>
+<div id="status" class="status">대기 중</div>
 
 <div class="board-wrapper">
-  <div class="ranks">
-    <div>8</div><div>7</div><div>6</div><div>5</div>
-    <div>4</div><div>3</div><div>2</div><div>1</div>
-  </div>
-
+  <div class="ranks">8 7 6 5 4 3 2 1</div>
   <div id="board" class="board"></div>
-
-  <div class="files">
-    <div>A</div><div>B</div><div>C</div><div>D</div>
-    <div>E</div><div>F</div><div>G</div><div>H</div>
-  </div>
+  <div class="files">A B C D E F G H</div>
 </div>
 
 <script>
 const boardEl = document.getElementById("board");
 const statusEl = document.getElementById("status");
 
-let roomCode = null;
-let gameStarted = false;
-let turn = null;
-let selectedIndex = null;
+let room = null;
+let playerColor = null;
+let selected = null;
 
-const pieces = [
+const initialBoard = [
  "♜","♞","♝","♛","♚","♝","♞","♜",
  "♟","♟","♟","♟","♟","♟","♟","♟",
  "","","","","","","","",
@@ -113,54 +81,68 @@ const pieces = [
  "♖","♘","♗","♕","♔","♗","♘","♖"
 ];
 
-function drawBoard() {
-  boardEl.innerHTML = "";
-  pieces.forEach((p, i) => {
-    const sq = document.createElement("div");
-    sq.className = "square " + ((Math.floor(i/8)+i)%2===0?"white":"black");
-    if(p) sq.textContent = p;
-    sq.onclick = () => clickSquare(i);
-    boardEl.appendChild(sq);
+function draw() {
+  boardEl.innerHTML="";
+  const game = JSON.parse(localStorage.getItem(room));
+  game.board.forEach((p,i)=>{
+    const d=document.createElement("div");
+    d.className="square "+((Math.floor(i/8)+i)%2?"black":"white");
+    d.textContent=p;
+    d.onclick=()=>click(i);
+    boardEl.appendChild(d);
   });
 }
 
-function clickSquare(i) {
-  if(!gameStarted) return;
+function click(i){
+  const game = JSON.parse(localStorage.getItem(room));
+  if(game.turn !== playerColor) return;
 
-  if(selectedIndex === null) {
-    if(pieces[i] === "") return;
-    selectedIndex = i;
+  const p = game.board[i];
+  const isWhite = p && p==="♙♖♘♗♕♔".includes(p);
+
+  if(selected===null){
+    if(!p) return;
+    if((playerColor==="백" && !isWhite) || (playerColor==="흑" && isWhite)) return;
+    selected=i;
   } else {
-    pieces[i] = pieces[selectedIndex];
-    pieces[selectedIndex] = "";
-    selectedIndex = null;
-    turn = turn === "백" ? "흑" : "백";
-    statusEl.textContent = `게임 진행 중 - ${turn} 차례`;
-    drawBoard();
+    game.board[i]=game.board[selected];
+    game.board[selected]="";
+    selected=null;
+    game.turn = game.turn==="백"?"흑":"백";
+    localStorage.setItem(room,JSON.stringify(game));
+    updateStatus();
+    draw();
   }
 }
 
-function startGame() {
-  gameStarted = true;
-  turn = Math.random() < 0.5 ? "백" : "흑";
-  statusEl.textContent = `게임 시작! ${turn} 차례`;
+function updateStatus(){
+  const game=JSON.parse(localStorage.getItem(room));
+  statusEl.textContent = `게임 시작 - ${game.turn} 차례 (${playerColor})`;
 }
 
-function createRoom() {
-  roomCode = Math.random().toString(36).substr(2,5).toUpperCase();
-  statusEl.textContent = `방 생성됨 (코드: ${roomCode}) - 상대 대기 중`;
+function createRoom(){
+  room = "chess_"+Math.random().toString(36).substr(2,5);
+  playerColor="백";
+  localStorage.setItem(room, JSON.stringify({
+    board:[...initialBoard],
+    turn: Math.random()<0.5?"백":"흑",
+    players:1
+  }));
+  statusEl.textContent="방 생성됨 - 상대 대기 중 (백)";
+  draw();
 }
 
-function joinRoom() {
-  const code = document.getElementById("roomInput").value.trim();
-  if(!code) return alert("방 코드 입력");
-  roomCode = code;
-  statusEl.textContent = `상대 입장 완료 (코드: ${roomCode})`;
-  startGame();
+function joinRoom(){
+  room = document.getElementById("roomInput").value;
+  const game = JSON.parse(localStorage.getItem(room));
+  if(!game) return alert("방 없음");
+  playerColor="흑";
+  game.players=2;
+  localStorage.setItem(room,JSON.stringify(game));
+  updateStatus();
+  draw();
 }
 
-drawBoard();
 </script>
-
 </body>
 </html>
