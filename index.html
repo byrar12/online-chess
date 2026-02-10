@@ -3,155 +3,234 @@
 <head>
   <meta charset="UTF-8" />
   <title>온라인 체스</title>
+
+  <!-- PeerJS -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
   <style>
-    body { font-family: Arial; text-align: center; }
+    body {
+      font-family: system-ui, sans-serif;
+      text-align: center;
+    }
+
+    #top {
+      margin-bottom: 10px;
+    }
+
+    #status {
+      margin: 6px;
+      font-weight: bold;
+    }
+
+    #board-wrapper {
+      display: inline-block;
+    }
+
+    #files {
+      display: grid;
+      grid-template-columns: repeat(8, 50px);
+      margin-left: 30px;
+      font-size: 14px;
+    }
+
+    #ranks {
+      display: grid;
+      grid-template-rows: repeat(8, 50px);
+      margin-top: 20px;
+      font-size: 14px;
+      float: left;
+    }
+
     #board {
       display: grid;
       grid-template-columns: repeat(8, 50px);
-      width: 400px;
-      margin: 20px auto;
+      border: 2px solid #333;
     }
+
+    .rank, .file {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     .cell {
       width: 50px;
       height: 50px;
-      font-size: 28px;
+      font-size: 32px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
     }
-    .white { background: #f0d9b5; }
-    .black { background: #b58863; }
-    .selected { outline: 3px solid red; }
+
+    .white {
+      background: #f0d9b5;
+    }
+
+    .black {
+      background: #b58863;
+    }
+
+    .selected {
+      outline: 3px solid red;
+    }
+
+    input, button {
+      padding: 6px;
+      margin: 2px;
+    }
   </style>
 </head>
 <body>
 
 <h1>온라인 체스</h1>
 
-<div>
-  <button onclick="createRoom()">방 만들기</button>
-  <input id="roomId" placeholder="방 코드 입력" />
+<div id="top">
+  <button onclick="createRoom()">방 만들기 (백)</button>
+  <input id="roomInput" placeholder="방 코드 입력 (흑)" />
   <button onclick="joinRoom()">입장</button>
+  <div id="status">대기 중</div>
 </div>
 
-<p id="status">대기 중...</p>
-
-<div id="board"></div>
-
-<!-- PeerJS -->
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<div id="board-wrapper">
+  <div id="ranks"></div>
+  <div id="board"></div>
+  <div style="clear: both;"></div>
+  <div id="files"></div>
+</div>
 
 <script>
-const boardEl = document.getElementById("board");
-const statusEl = document.getElementById("status");
-
+/* ====== 기본 상태 ====== */
 let peer = null;
 let conn = null;
 
-let selected = null;
+let myColor = null; // "white" | "black"
 let myTurn = false;
-let isHost = false;
+let selected = null;
 
-// 말 배치 (불법 수 허용)
+/* ====== 표준 체스 말 ====== */
+const PIECES = {
+  white: ["♖","♘","♗","♕","♔","♗","♘","♖","♙"],
+  black: ["♜","♞","♝","♛","♚","♝","♞","♜","♟"]
+};
+
+/* ====== 보드 ====== */
 let board = [
-  "♜♞♝♛♚♝♞♜",
-  "♟♟♟♟♟♟♟♟",
-  "........",
-  "........",
-  "........",
-  "........",
-  "♙♙♙♙♙♙♙♙",
-  "♖♘♗♕♔♗♘♖"
+  ["♜","♞","♝","♛","♚","♝","♞","♜"],
+  ["♟","♟","♟","♟","♟","♟","♟","♟"],
+  ["","","","","","","",""],
+  ["","","","","","","",""],
+  ["","","","","","","",""],
+  ["","","","","","","",""],
+  ["♙","♙","♙","♙","♙","♙","♙","♙"],
+  ["♖","♘","♗","♕","♔","♗","♘","♖"]
 ];
 
-function draw() {
+const boardEl = document.getElementById("board");
+const statusEl = document.getElementById("status");
+
+/* ====== 좌표 ====== */
+function drawCoords() {
+  const ranks = document.getElementById("ranks");
+  const files = document.getElementById("files");
+  ranks.innerHTML = "";
+  files.innerHTML = "";
+
+  for (let i = 8; i >= 1; i--) {
+    const d = document.createElement("div");
+    d.className = "rank";
+    d.textContent = i;
+    ranks.appendChild(d);
+  }
+
+  for (let c = 0; c < 8; c++) {
+    const d = document.createElement("div");
+    d.className = "file";
+    d.textContent = String.fromCharCode(65 + c);
+    files.appendChild(d);
+  }
+}
+
+/* ====== 보드 렌더 ====== */
+function drawBoard() {
   boardEl.innerHTML = "";
   for (let r = 0; r < 8; r++) {
     for (let c = 0; c < 8; c++) {
-      const i = r * 8 + c;
       const cell = document.createElement("div");
-      cell.className = "cell " + ((r + c) % 2 ? "black" : "white");
-      cell.textContent = board[r][c] === "." ? "" : board[r][c];
-      if (selected === i) cell.classList.add("selected");
-      cell.onclick = () => clickCell(i);
+      cell.className = "cell " + ((r + c) % 2 === 0 ? "white" : "black");
+      cell.textContent = board[r][c];
+      if (selected && selected.r === r && selected.c === c) {
+        cell.classList.add("selected");
+      }
+      cell.onclick = () => clickCell(r, c);
       boardEl.appendChild(cell);
     }
   }
 }
 
-function clickCell(i) {
+/* ====== 클릭 ====== */
+function clickCell(r, c) {
   if (!myTurn) return;
 
-  if (selected === null) {
-    selected = i;
+  if (!selected) {
+    if (!board[r][c]) return;
+    selected = { r, c };
   } else {
-    move(selected, i);
+    board[r][c] = board[selected.r][selected.c];
+    board[selected.r][selected.c] = "";
     selected = null;
+    myTurn = false;
+    sendState();
   }
-  draw();
+  drawBoard();
 }
 
-function move(from, to) {
-  const fr = Math.floor(from / 8);
-  const fc = from % 8;
-  const tr = Math.floor(to / 8);
-  const tc = to % 8;
-
-  const piece = board[fr][fc];
-  if (piece === ".") return;
-
-  board[fr] = replace(board[fr], fc, ".");
-  board[tr] = replace(board[tr], tc, piece);
-
-  send();
-  myTurn = false;
-}
-
-function replace(str, idx, ch) {
-  return str.substring(0, idx) + ch + str.substring(idx + 1);
-}
-
-function send() {
+/* ====== 네트워크 ====== */
+function sendState() {
   if (conn) conn.send(board);
 }
 
+function setupConnection() {
+  conn.on("data", data => {
+    board = data;
+    myTurn = true;
+    drawBoard();
+  });
+}
+
+/* ====== 방 생성 ====== */
 function createRoom() {
   peer = new Peer();
   peer.on("open", id => {
-    statusEl.textContent = "방 코드: " + id + " (공유하세요)";
-    isHost = true;
+    statusEl.textContent = "방 코드: " + id + " (백)";
+    myColor = "white";
     myTurn = true;
+  });
 
-    peer.on("connection", c => {
-      conn = c;
-      conn.on("data", data => {
-        board = data;
-        myTurn = true;
-        draw();
-      });
-    });
+  peer.on("connection", c => {
+    conn = c;
+    setupConnection();
   });
 }
 
+/* ====== 방 입장 ====== */
 function joinRoom() {
-  const id = document.getElementById("roomId").value.trim();
+  const id = document.getElementById("roomInput").value.trim();
+  if (!id) return;
+
   peer = new Peer();
   peer.on("open", () => {
     conn = peer.connect(id);
-    conn.on("open", () => {
-      statusEl.textContent = "입장 완료";
-      myTurn = false;
-    });
-    conn.on("data", data => {
-      board = data;
-      myTurn = true;
-      draw();
-    });
+    statusEl.textContent = "입장 완료 (흑)";
+    myColor = "black";
+    myTurn = false;
+    setupConnection();
   });
 }
 
-draw();
+/* ====== 시작 ====== */
+drawCoords();
+drawBoard();
 </script>
 
 </body>
