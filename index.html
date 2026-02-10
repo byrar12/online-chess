@@ -3,7 +3,99 @@
 <head>
   <meta charset="UTF-8" />
   <title>온라인 체스</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      text-align: center;
+      background: #f5f6f7;
+      margin: 0;
+      padding: 16px;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    .controls {
+      margin-bottom: 10px;
+    }
+
+    button, input {
+      padding: 6px 10px;
+      font-size: 14px;
+      margin: 2px;
+    }
+
+    #status {
+      margin: 8px 0;
+      font-weight: 600;
+      min-height: 1.2em;
+    }
+
+    /* ===== 체스판 + 좌표 ===== */
+    .board-wrap {
+      display: inline-grid;
+      grid-template-columns: 28px auto;
+      grid-template-rows: auto 28px;
+      gap: 4px;
+      user-select: none;
+    }
+
+    .ranks {
+      display: grid;
+      grid-template-rows: repeat(8, 48px);
+      align-items: center;
+      justify-items: center;
+      font-size: 12px;
+      color: #555;
+    }
+
+    .files {
+      grid-column: 2;
+      display: grid;
+      grid-template-columns: repeat(8, 48px);
+      align-items: center;
+      justify-items: center;
+      font-size: 12px;
+      color: #555;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 48px);
+      grid-template-rows: repeat(8, 48px);
+      border: 3px solid #333;
+      background: #333;
+    }
+
+    .cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      cursor: pointer;
+    }
+
+    .light { background: #f0d9b5; }
+    .dark  { background: #b58863; }
+
+    .selected {
+      outline: 3px solid #e11d48;
+      outline-offset: -3px;
+    }
+
+    @media (max-width: 420px) {
+      .board { 
+        grid-template-columns: repeat(8, 40px);
+        grid-template-rows: repeat(8, 40px);
+      }
+      .cell { font-size: 26px; }
+      .ranks { grid-template-rows: repeat(8, 40px); }
+      .files { grid-template-columns: repeat(8, 40px); }
+    }
+  </style>
 </head>
 <body>
 
@@ -17,20 +109,134 @@
 
 <div id="status"></div>
 
-<div class="board-wrapper">
-  <div class="rank-labels">
-    <div>8</div><div>7</div><div>6</div><div>5</div>
-    <div>4</div><div>3</div><div>2</div><div>1</div>
-  </div>
-
-  <div id="board"></div>
-
-  <div class="file-labels">
-    <div>A</div><div>B</div><div>C</div><div>D</div>
-    <div>E</div><div>F</div><div>G</div><div>H</div>
-  </div>
+<div class="board-wrap">
+  <div class="ranks" id="ranks"></div>
+  <div class="board" id="board"></div>
+  <div></div>
+  <div class="files" id="files"></div>
 </div>
 
-<script src="script.js"></script>
+<script>
+  /* ======================
+     상태 / 데이터
+  ====================== */
+
+  const boardEl  = document.getElementById("board");
+  const ranksEl  = document.getElementById("ranks");
+  const filesEl  = document.getElementById("files");
+  const statusEl = document.getElementById("status");
+
+  const createBtn = document.getElementById("createRoom");
+  const joinBtn   = document.getElementById("joinRoom");
+  const roomInput = document.getElementById("roomInput");
+
+  let roomCode = null;
+  let myColor  = null;   // "white" | "black"
+  let myTurn   = false;
+  let selected = null;
+
+  // 표준 체스 말 (명확한 흑/백)
+  let board = [
+    ["♜","♞","♝","♛","♚","♝","♞","♜"],
+    ["♟","♟","♟","♟","♟","♟","♟","♟"],
+    ["","","","","","","",""],
+    ["","","","","","","",""],
+    ["","","","","","","",""],
+    ["","","","","","","",""],
+    ["♙","♙","♙","♙","♙","♙","♙","♙"],
+    ["♖","♘","♗","♕","♔","♗","♘","♖"]
+  ];
+
+  /* ======================
+     좌표
+  ====================== */
+
+  function drawCoords() {
+    ranksEl.innerHTML = "";
+    filesEl.innerHTML = "";
+
+    for (let i = 8; i >= 1; i--) {
+      const d = document.createElement("div");
+      d.textContent = i;
+      ranksEl.appendChild(d);
+    }
+
+    for (let i = 0; i < 8; i++) {
+      const d = document.createElement("div");
+      d.textContent = String.fromCharCode(65 + i);
+      filesEl.appendChild(d);
+    }
+  }
+
+  /* ======================
+     보드 렌더
+  ====================== */
+
+  function drawBoard() {
+    boardEl.innerHTML = "";
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const cell = document.createElement("div");
+        cell.className = "cell " + ((r + c) % 2 === 0 ? "light" : "dark");
+        cell.textContent = board[r][c];
+
+        if (selected && selected.r === r && selected.c === c) {
+          cell.classList.add("selected");
+        }
+
+        cell.onclick = () => onCellClick(r, c);
+        boardEl.appendChild(cell);
+      }
+    }
+  }
+
+  function onCellClick(r, c) {
+    if (!myTurn) return;
+
+    if (!selected) {
+      if (!board[r][c]) return;
+      selected = { r, c };
+    } else {
+      board[r][c] = board[selected.r][selected.c];
+      board[selected.r][selected.c] = "";
+      selected = null;
+      myTurn = false;
+    }
+    drawBoard();
+  }
+
+  /* ======================
+     방 코드
+  ====================== */
+
+  function generateRoomCode() {
+    return Math.random().toString(36).slice(2, 8).toUpperCase();
+  }
+
+  createBtn.onclick = () => {
+    roomCode = generateRoomCode();
+    myColor = "white";
+    myTurn = true;
+    statusEl.textContent = `방 코드: ${roomCode} (상대 대기 중)`;
+  };
+
+  joinBtn.onclick = () => {
+    const code = roomInput.value.trim().toUpperCase();
+    if (!code) return alert("방 코드를 입력하세요");
+
+    roomCode = code;
+    myColor = "black";
+    myTurn = false;
+    statusEl.textContent = `입장 완료 (흑)`;
+  };
+
+  /* ======================
+     시작
+  ====================== */
+
+  drawCoords();
+  drawBoard();
+</script>
+
 </body>
 </html>
