@@ -1,240 +1,191 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <title>온라인 체스</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8" />
+<title>온라인 체스</title>
 
-  <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      text-align: center;
-      background: #f5f6f7;
-      margin: 0;
-      padding: 16px;
-    }
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+  }
 
-    h1 {
-      margin-bottom: 10px;
-    }
+  h1 {
+    margin-bottom: 10px;
+  }
 
-    .controls {
-      margin-bottom: 10px;
-    }
+  .controls {
+    margin-bottom: 10px;
+  }
 
-    button, input {
-      padding: 6px 10px;
-      font-size: 14px;
-      margin: 2px;
-    }
+  .controls input {
+    padding: 6px;
+    font-size: 14px;
+  }
 
-    #status {
-      margin: 8px 0;
-      font-weight: 600;
-      min-height: 1.2em;
-    }
+  .controls button {
+    padding: 6px 10px;
+    font-size: 14px;
+    cursor: pointer;
+  }
 
-    /* ===== 체스판 + 좌표 ===== */
-    .board-wrap {
-      display: inline-grid;
-      grid-template-columns: 28px auto;
-      grid-template-rows: auto 28px;
-      gap: 4px;
-      user-select: none;
-    }
+  #status {
+    margin: 10px;
+    font-weight: bold;
+    height: 20px;
+  }
 
-    .ranks {
-      display: grid;
-      grid-template-rows: repeat(8, 48px);
-      align-items: center;
-      justify-items: center;
-      font-size: 12px;
-      color: #555;
-    }
+  .board-wrapper {
+    display: inline-grid;
+    grid-template-columns: 30px repeat(8, 60px);
+    grid-template-rows: repeat(8, 60px) 30px;
+    gap: 0;
+  }
 
-    .files {
-      grid-column: 2;
-      display: grid;
-      grid-template-columns: repeat(8, 48px);
-      align-items: center;
-      justify-items: center;
-      font-size: 12px;
-      color: #555;
-    }
+  .rank {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+  }
 
-    .board {
-      display: grid;
-      grid-template-columns: repeat(8, 48px);
-      grid-template-rows: repeat(8, 48px);
-      border: 3px solid #333;
-      background: #333;
-    }
+  .file {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+  }
 
-    .cell {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 30px;
-      cursor: pointer;
-    }
+  .board {
+    grid-column: 2 / 10;
+    grid-row: 1 / 9;
+    display: grid;
+    grid-template-columns: repeat(8, 60px);
+    grid-template-rows: repeat(8, 60px);
+    border: 3px solid #333;
+  }
 
-    .light { background: #f0d9b5; }
-    .dark  { background: #b58863; }
+  .square {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    cursor: pointer;
+  }
 
-    .selected {
-      outline: 3px solid #e11d48;
-      outline-offset: -3px;
-    }
+  .light { background: #f0d9b5; }
+  .dark { background: #b58863; }
 
-    @media (max-width: 420px) {
-      .board { 
-        grid-template-columns: repeat(8, 40px);
-        grid-template-rows: repeat(8, 40px);
-      }
-      .cell { font-size: 26px; }
-      .ranks { grid-template-rows: repeat(8, 40px); }
-      .files { grid-template-columns: repeat(8, 40px); }
-    }
-  </style>
+  .selected {
+    outline: 3px solid red;
+  }
+</style>
 </head>
+
 <body>
 
 <h1>온라인 체스</h1>
 
 <div class="controls">
-  <button id="createRoom">방 만들기 (백)</button>
+  <button onclick="createRoom()">방 만들기 (백)</button>
   <input id="roomInput" placeholder="방 코드 입력 (흑)" />
-  <button id="joinRoom">입장</button>
+  <button onclick="joinRoom()">입장</button>
 </div>
 
 <div id="status"></div>
 
-<div class="board-wrap">
-  <div class="ranks" id="ranks"></div>
+<div class="board-wrapper">
+  <!-- 왼쪽 숫자 -->
+  <div class="rank">8</div>
+  <div class="rank">7</div>
+  <div class="rank">6</div>
+  <div class="rank">5</div>
+  <div class="rank">4</div>
+  <div class="rank">3</div>
+  <div class="rank">2</div>
+  <div class="rank">1</div>
+
+  <!-- 체스판 -->
   <div class="board" id="board"></div>
+
+  <!-- 아래 알파벳 -->
   <div></div>
-  <div class="files" id="files"></div>
+  <div class="file">A</div>
+  <div class="file">B</div>
+  <div class="file">C</div>
+  <div class="file">D</div>
+  <div class="file">E</div>
+  <div class="file">F</div>
+  <div class="file">G</div>
+  <div class="file">H</div>
 </div>
 
 <script>
-  /* ======================
-     상태 / 데이터
-  ====================== */
+  const boardElement = document.getElementById("board");
+  const status = document.getElementById("status");
 
-  const boardEl  = document.getElementById("board");
-  const ranksEl  = document.getElementById("ranks");
-  const filesEl  = document.getElementById("files");
-  const statusEl = document.getElementById("status");
-
-  const createBtn = document.getElementById("createRoom");
-  const joinBtn   = document.getElementById("joinRoom");
-  const roomInput = document.getElementById("roomInput");
-
-  let roomCode = null;
-  let myColor  = null;   // "white" | "black"
-  let myTurn   = false;
   let selected = null;
+  let turn = "white";
+  let roomCode = null;
 
-  // 표준 체스 말 (명확한 흑/백)
-  let board = [
-    ["♜","♞","♝","♛","♚","♝","♞","♜"],
-    ["♟","♟","♟","♟","♟","♟","♟","♟"],
-    ["","","","","","","",""],
-    ["","","","","","","",""],
-    ["","","","","","","",""],
-    ["","","","","","","",""],
-    ["♙","♙","♙","♙","♙","♙","♙","♙"],
-    ["♖","♘","♗","♕","♔","♗","♘","♖"]
+  const pieces = {
+    r: "♜", n: "♞", b: "♝", q: "♛", k: "♚", p: "♟",
+    R: "♖", N: "♘", B: "♗", Q: "♕", K: "♔", P: "♙"
+  };
+
+  const initialBoard = [
+    "rnbqkbnr",
+    "pppppppp",
+    "........",
+    "........",
+    "........",
+    "........",
+    "PPPPPPPP",
+    "RNBQKBNR"
   ];
 
-  /* ======================
-     좌표
-  ====================== */
-
-  function drawCoords() {
-    ranksEl.innerHTML = "";
-    filesEl.innerHTML = "";
-
-    for (let i = 8; i >= 1; i--) {
-      const d = document.createElement("div");
-      d.textContent = i;
-      ranksEl.appendChild(d);
-    }
-
-    for (let i = 0; i < 8; i++) {
-      const d = document.createElement("div");
-      d.textContent = String.fromCharCode(65 + i);
-      filesEl.appendChild(d);
-    }
-  }
-
-  /* ======================
-     보드 렌더
-  ====================== */
-
   function drawBoard() {
-    boardEl.innerHTML = "";
-    for (let r = 0; r < 8; r++) {
-      for (let c = 0; c < 8; c++) {
-        const cell = document.createElement("div");
-        cell.className = "cell " + ((r + c) % 2 === 0 ? "light" : "dark");
-        cell.textContent = board[r][c];
-
-        if (selected && selected.r === r && selected.c === c) {
-          cell.classList.add("selected");
-        }
-
-        cell.onclick = () => onCellClick(r, c);
-        boardEl.appendChild(cell);
+    boardElement.innerHTML = "";
+    for (let y = 0; y < 8; y++) {
+      for (let x = 0; x < 8; x++) {
+        const sq = document.createElement("div");
+        sq.className = "square " + ((x + y) % 2 ? "dark" : "light");
+        const piece = initialBoard[y][x];
+        if (piece !== ".") sq.textContent = pieces[piece];
+        sq.onclick = () => onSquareClick(sq);
+        boardElement.appendChild(sq);
       }
     }
   }
 
-  function onCellClick(r, c) {
-    if (!myTurn) return;
+  function onSquareClick(square) {
+    if (!roomCode) return;
 
-    if (!selected) {
-      if (!board[r][c]) return;
-      selected = { r, c };
-    } else {
-      board[r][c] = board[selected.r][selected.c];
-      board[selected.r][selected.c] = "";
+    if (selected) {
+      selected.classList.remove("selected");
       selected = null;
-      myTurn = false;
+      turn = turn === "white" ? "black" : "white";
+      status.textContent = turn === "white" ? "백 차례" : "흑 차례";
+    } else {
+      selected = square;
+      square.classList.add("selected");
     }
-    drawBoard();
   }
 
-  /* ======================
-     방 코드
-  ====================== */
-
-  function generateRoomCode() {
-    return Math.random().toString(36).slice(2, 8).toUpperCase();
+  function createRoom() {
+    roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
+    status.textContent = `방 생성됨 (코드: ${roomCode}) - 백 차례`;
+    turn = "white";
   }
 
-  createBtn.onclick = () => {
-    roomCode = generateRoomCode();
-    myColor = "white";
-    myTurn = true;
-    statusEl.textContent = `방 코드: ${roomCode} (상대 대기 중)`;
-  };
+  function joinRoom() {
+    const input = document.getElementById("roomInput").value.trim();
+    if (!input) return;
+    roomCode = input.toUpperCase();
+    status.textContent = `방 입장 완료 (코드: ${roomCode}) - 백 차례`;
+    turn = "white";
+  }
 
-  joinBtn.onclick = () => {
-    const code = roomInput.value.trim().toUpperCase();
-    if (!code) return alert("방 코드를 입력하세요");
-
-    roomCode = code;
-    myColor = "black";
-    myTurn = false;
-    statusEl.textContent = `입장 완료 (흑)`;
-  };
-
-  /* ======================
-     시작
-  ====================== */
-
-  drawCoords();
   drawBoard();
 </script>
 
