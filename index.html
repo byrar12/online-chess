@@ -18,63 +18,63 @@
     margin-bottom: 10px;
   }
 
-  .controls input {
-    padding: 6px;
-    font-size: 14px;
-  }
-
-  .controls button {
+  .controls input, .controls button {
     padding: 6px 10px;
     font-size: 14px;
-    cursor: pointer;
   }
 
-  #status {
-    margin: 10px;
+  .status {
     font-weight: bold;
-    height: 20px;
+    margin-bottom: 10px;
   }
 
+  /* ===== 체스 전체 래퍼 ===== */
   .board-wrapper {
     display: inline-grid;
-    grid-template-columns: 30px repeat(8, 60px);
-    grid-template-rows: repeat(8, 60px) 30px;
+    grid-template-columns: 30px auto;
+    grid-template-rows: auto 30px;
     gap: 0;
   }
 
-  .rank {
-    display: flex;
+  /* ===== 좌측 숫자 ===== */
+  .ranks {
+    display: grid;
+    grid-template-rows: repeat(8, 60px);
     align-items: center;
-    justify-content: center;
+    justify-items: center;
     font-weight: bold;
   }
 
-  .file {
-    display: flex;
+  /* ===== 하단 문자 ===== */
+  .files {
+    grid-column: 2;
+    display: grid;
+    grid-template-columns: repeat(8, 60px);
     align-items: center;
-    justify-content: center;
+    justify-items: center;
     font-weight: bold;
   }
 
+  /* ===== 체스판 ===== */
   .board {
-    grid-column: 2 / 10;
-    grid-row: 1 / 9;
     display: grid;
     grid-template-columns: repeat(8, 60px);
     grid-template-rows: repeat(8, 60px);
-    border: 3px solid #333;
+    border: 4px solid #333; /* ← 테두리 수정 핵심 */
+    box-sizing: border-box;
   }
 
   .square {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 36px;
+    font-size: 40px;
     cursor: pointer;
+    user-select: none;
   }
 
-  .light { background: #f0d9b5; }
-  .dark { background: #b58863; }
+  .white { background: #f0d9b5; }
+  .black { background: #b58863; }
 
   .selected {
     outline: 3px solid red;
@@ -92,98 +92,65 @@
   <button onclick="joinRoom()">입장</button>
 </div>
 
-<div id="status"></div>
+<div id="status" class="status"></div>
 
 <div class="board-wrapper">
-  <!-- 왼쪽 숫자 -->
-  <div class="rank">8</div>
-  <div class="rank">7</div>
-  <div class="rank">6</div>
-  <div class="rank">5</div>
-  <div class="rank">4</div>
-  <div class="rank">3</div>
-  <div class="rank">2</div>
-  <div class="rank">1</div>
+  <div class="ranks">
+    <div>8</div><div>7</div><div>6</div><div>5</div>
+    <div>4</div><div>3</div><div>2</div><div>1</div>
+  </div>
 
-  <!-- 체스판 -->
-  <div class="board" id="board"></div>
+  <div id="board" class="board"></div>
 
-  <!-- 아래 알파벳 -->
-  <div></div>
-  <div class="file">A</div>
-  <div class="file">B</div>
-  <div class="file">C</div>
-  <div class="file">D</div>
-  <div class="file">E</div>
-  <div class="file">F</div>
-  <div class="file">G</div>
-  <div class="file">H</div>
+  <div class="files">
+    <div>A</div><div>B</div><div>C</div><div>D</div>
+    <div>E</div><div>F</div><div>G</div><div>H</div>
+  </div>
 </div>
 
 <script>
-  const boardElement = document.getElementById("board");
-  const status = document.getElementById("status");
+  const boardEl = document.getElementById("board");
+  const statusEl = document.getElementById("status");
 
-  let selected = null;
-  let turn = "white";
-  let roomCode = null;
-
-  const pieces = {
-    r: "♜", n: "♞", b: "♝", q: "♛", k: "♚", p: "♟",
-    R: "♖", N: "♘", B: "♗", Q: "♕", K: "♔", P: "♙"
-  };
-
-  const initialBoard = [
-    "rnbqkbnr",
-    "pppppppp",
-    "........",
-    "........",
-    "........",
-    "........",
-    "PPPPPPPP",
-    "RNBQKBNR"
+  const pieces = [
+    "♜","♞","♝","♛","♚","♝","♞","♜",
+    "♟","♟","♟","♟","♟","♟","♟","♟",
+    "","","","","","","","",
+    "","","","","","","","",
+    "","","","","","","","",
+    "","","","","","","","",
+    "♙","♙","♙","♙","♙","♙","♙","♙",
+    "♖","♘","♗","♕","♔","♗","♘","♖"
   ];
 
+  let selected = null;
+
   function drawBoard() {
-    boardElement.innerHTML = "";
-    for (let y = 0; y < 8; y++) {
-      for (let x = 0; x < 8; x++) {
-        const sq = document.createElement("div");
-        sq.className = "square " + ((x + y) % 2 ? "dark" : "light");
-        const piece = initialBoard[y][x];
-        if (piece !== ".") sq.textContent = pieces[piece];
-        sq.onclick = () => onSquareClick(sq);
-        boardElement.appendChild(sq);
-      }
+    boardEl.innerHTML = "";
+    for (let i = 0; i < 64; i++) {
+      const sq = document.createElement("div");
+      sq.className = "square " + ((Math.floor(i/8)+i)%2===0 ? "white":"black");
+      sq.textContent = pieces[i];
+      sq.onclick = () => clickSquare(sq);
+      boardEl.appendChild(sq);
     }
   }
 
-  function onSquareClick(square) {
-    if (!roomCode) return;
-
-    if (selected) {
-      selected.classList.remove("selected");
-      selected = null;
-      turn = turn === "white" ? "black" : "white";
-      status.textContent = turn === "white" ? "백 차례" : "흑 차례";
-    } else {
-      selected = square;
-      square.classList.add("selected");
-    }
+  function clickSquare(sq) {
+    if (selected) selected.classList.remove("selected");
+    selected = sq;
+    sq.classList.add("selected");
   }
 
   function createRoom() {
-    roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
-    status.textContent = `방 생성됨 (코드: ${roomCode}) - 백 차례`;
-    turn = "white";
+    const code = Math.random().toString(36).substring(2,7).toUpperCase();
+    statusEl.textContent = `방 생성됨 (코드: ${code}) - 백 차례`;
   }
 
   function joinRoom() {
-    const input = document.getElementById("roomInput").value.trim();
-    if (!input) return;
-    roomCode = input.toUpperCase();
-    status.textContent = `방 입장 완료 (코드: ${roomCode}) - 백 차례`;
-    turn = "white";
+    const code = document.getElementById("roomInput").value.trim();
+    if (!code) return alert("방 코드를 입력하세요");
+    statusEl.textContent = `방 입장 완료 (코드: ${code}) - 흑 차례`;
   }
 
   drawBoard();
