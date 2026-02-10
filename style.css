@@ -1,31 +1,22 @@
 body {
-  font-family: Arial, sans-serif;
+  font-family: sans-serif;
   text-align: center;
 }
 
-.title {
-  margin-bottom: 20px;
+.controls {
+  margin-bottom: 10px;
 }
 
-/* 전체 감싸는 구조 */
+#status {
+  margin: 10px;
+  font-weight: bold;
+}
+
 .board-wrapper {
   display: flex;
   justify-content: center;
   align-items: center;
-}
-
-/* 왼쪽 숫자 좌표 */
-.ranks {
-  display: grid;
-  grid-template-rows: repeat(8, 60px);
-  margin-right: 6px;
-  font-weight: bold;
-}
-
-.ranks div {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin-top: 10px;
 }
 
 /* 체스판 */
@@ -33,17 +24,15 @@ body {
   display: grid;
   grid-template-columns: repeat(8, 60px);
   grid-template-rows: repeat(8, 60px);
-  border: 3px solid #333;
+  border: 4px solid #333;
 }
 
-/* 체스 칸 */
+/* 칸 */
 .square {
-  width: 60px;
-  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 38px;
+  font-size: 36px;
   cursor: pointer;
 }
 
@@ -55,84 +44,29 @@ body {
   background: #b58863;
 }
 
-/* 아래 문자 좌표 */
-.files {
-  display: grid;
-  grid-template-columns: repeat(8, 60px);
-  margin: 6px auto 0;
-  width: 480px;
-  font-weight: bold;
-}
-
-.files div {
-  text-align: center;
-}
-body {
-  font-family: Arial, sans-serif;
-  text-align: center;
-}
-
-.title {
-  margin-bottom: 20px;
-}
-
-/* 전체 감싸는 구조 */
-.board-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-/* 왼쪽 숫자 좌표 */
+/* 좌측 숫자 */
 .ranks {
   display: grid;
   grid-template-rows: repeat(8, 60px);
-  margin-right: 6px;
+  margin-right: 8px;
   font-weight: bold;
-}
-
-.ranks div {
-  display: flex;
   align-items: center;
-  justify-content: center;
 }
 
-/* 체스판 */
-#board {
+/* 우측 알파벳 */
+.files-vertical {
   display: grid;
-  grid-template-columns: repeat(8, 60px);
   grid-template-rows: repeat(8, 60px);
-  border: 3px solid #333;
-}
-
-/* 체스 칸 */
-.square {
-  width: 60px;
-  height: 60px;
-  display: flex;
+  margin-left: 8px;
+  font-weight: bold;
   align-items: center;
-  justify-content: center;
-  font-size: 38px;
-  cursor: pointer;
 }
 
-.white {
-  background: #f0d9b5;
-}
-
-.black {
-  background: #b58863;
-}
-
-/* 아래 문자 좌표 */
-.files {
+/* 하단 알파벳 */
+.files-horizontal {
   display: grid;
   grid-template-columns: repeat(8, 60px);
-  margin: 6px auto 0;
   width: 480px;
+  margin: 6px auto 0;
   font-weight: bold;
-}
-
-.files div {
-  text-align: center;
 }
