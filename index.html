@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>온라인 체스</title>
+  <meta charset="UTF-8" />
+  <title>온라인 체스 1:1</title>
+
+  <!-- PeerJS (서버 필요 없음) -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
   <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-    }
+    body { font-family: sans-serif; text-align: center; }
     #board {
       display: grid;
       grid-template-columns: repeat(8, 50px);
@@ -16,30 +17,38 @@
       border: 2px solid #333;
     }
     .cell {
-      width: 50px;
-      height: 50px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 32px;
-      cursor: pointer;
+      width: 50px; height: 50px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px; cursor: pointer;
     }
     .white { background: #f0d9b5; }
     .black { background: #b58863; }
+    .selected { outline: 3px solid red; }
+
+    input { padding: 6px; }
+    button { padding: 6px 10px; margin: 4px; }
   </style>
 </head>
 <body>
 
-<h1>온라인 체스</h1>
-<p>1:1 체스 (로컬 테스트)</p>
+<h1>온라인 체스 1:1</h1>
+
+<div>
+  <button onclick="createRoom()">방 만들기</button>
+  <input id="roomInput" placeholder="방 코드 입력" />
+  <button onclick="joinRoom()">입장</button>
+</div>
+
+<p id="status">연결 안 됨</p>
 
 <div id="board"></div>
 
 <script>
-const boardEl = document.getElementById("board");
+let peer = new Peer();
+let conn = null;
 
-// 체스 말 (유니코드)
-const pieces = [
+let selected = null;
+let pieces = [
   "♜","♞","♝","♛","♚","♝","♞","♜",
   "♟","♟","♟","♟","♟","♟","♟","♟",
   "","","","","","","","",
@@ -50,12 +59,66 @@ const pieces = [
   "♖","♘","♗","♕","♔","♗","♘","♖"
 ];
 
-for (let i = 0; i < 64; i++) {
-  const cell = document.createElement("div");
-  cell.className = "cell " + ((Math.floor(i / 8) + i) % 2 === 0 ? "white" : "black");
-  cell.textContent = pieces[i];
-  boardEl.appendChild(cell);
+const boardEl = document.getElementById("board");
+
+function drawBoard() {
+  boardEl.innerHTML = "";
+  for (let i = 0; i < 64; i++) {
+    const cell = document.createElement("div");
+    cell.className = "cell " + ((Math.floor(i / 8) + i) % 2 === 0 ? "white" : "black");
+    cell.textContent = pieces[i];
+    cell.onclick = () => clickCell(i, cell);
+    boardEl.appendChild(cell);
+  }
 }
+
+function clickCell(i, cell) {
+  if (selected === null && pieces[i] !== "") {
+    selected = i;
+    cell.classList.add("selected");
+  } else if (selected !== null) {
+    pieces[i] = pieces[selected];
+    pieces[selected] = "";
+    selected = null;
+    drawBoard();
+    sendState();
+  }
+}
+
+function sendState() {
+  if (conn) conn.send(pieces);
+}
+
+peer.on("open", id => {
+  document.getElementById("status").innerText = "내 방 코드: " + id;
+});
+
+peer.on("connection", c => {
+  conn = c;
+  document.getElementById("status").innerText = "상대 연결됨";
+  conn.on("data", data => {
+    pieces = data;
+    drawBoard();
+  });
+});
+
+function createRoom() {
+  alert("위에 표시된 방 코드를 친구에게 보내세요");
+}
+
+function joinRoom() {
+  const id = document.getElementById("roomInput").value;
+  conn = peer.connect(id);
+  conn.on("open", () => {
+    document.getElementById("status").innerText = "방 입장 완료";
+  });
+  conn.on("data", data => {
+    pieces = data;
+    drawBoard();
+  });
+}
+
+drawBoard();
 </script>
 
 </body>
