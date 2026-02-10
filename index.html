@@ -2,10 +2,61 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>Online Chess</title>
+  <title>온라인 체스</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+    }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(8, 50px);
+      width: 400px;
+      margin: 20px auto;
+      border: 2px solid #333;
+    }
+    .cell {
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      cursor: pointer;
+    }
+    .white { background: #f0d9b5; }
+    .black { background: #b58863; }
+  </style>
 </head>
 <body>
-  <h1>온라인 체스</h1>
-  <p>GitHub Pages 첫 배포 테스트</p>
+
+<h1>온라인 체스</h1>
+<p>1:1 체스 (로컬 테스트)</p>
+
+<div id="board"></div>
+
+<script>
+const boardEl = document.getElementById("board");
+
+// 체스 말 (유니코드)
+const pieces = [
+  "♜","♞","♝","♛","♚","♝","♞","♜",
+  "♟","♟","♟","♟","♟","♟","♟","♟",
+  "","","","","","","","",
+  "","","","","","","","",
+  "","","","","","","","",
+  "","","","","","","","",
+  "♙","♙","♙","♙","♙","♙","♙","♙",
+  "♖","♘","♗","♕","♔","♗","♘","♖"
+];
+
+for (let i = 0; i < 64; i++) {
+  const cell = document.createElement("div");
+  cell.className = "cell " + ((Math.floor(i / 8) + i) % 2 === 0 ? "white" : "black");
+  cell.textContent = pieces[i];
+  boardEl.appendChild(cell);
+}
+</script>
+
 </body>
 </html>
