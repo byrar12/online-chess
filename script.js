@@ -1,19 +1,36 @@
 const board = document.getElementById("board");
 
-const pieces = [
-  "♜","♞","♝","♛","♚","♝","♞","♜",
-  "♟","♟","♟","♟","♟","♟","♟","♟",
-  "","","","","","","","",
-  "","","","","","","","",
-  "","","","","","","","",
-  "","","","","","","","",
-  "♙","♙","♙","♙","♙","♙","♙","♙",
-  "♖","♘","♗","♕","♔","♗","♘","♖"
+const pieces = {
+  r: "♜", n: "♞", b: "♝", q: "♛", k: "♚", p: "♟",
+  R: "♖", N: "♘", B: "♗", Q: "♕", K: "♔", P: "♙"
+};
+
+const initialBoard = [
+  "rnbqkbnr",
+  "pppppppp",
+  "........",
+  "........",
+  "........",
+  "........",
+  "PPPPPPPP",
+  "RNBQKBNR"
 ];
 
-for (let i = 0; i < 64; i++) {
-  const square = document.createElement("div");
-  square.className = "square " + ((Math.floor(i / 8) + i) % 2 === 0 ? "white" : "black");
-  square.textContent = pieces[i];
-  board.appendChild(square);
+function drawBoard() {
+  board.innerHTML = "";
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      const square = document.createElement("div");
+      square.className = "square " + ((x + y) % 2 === 0 ? "white" : "black");
+
+      const piece = initialBoard[y][x];
+      if (piece !== ".") {
+        square.textContent = pieces[piece];
+      }
+
+      board.appendChild(square);
+    }
+  }
 }
+
+drawBoard();
